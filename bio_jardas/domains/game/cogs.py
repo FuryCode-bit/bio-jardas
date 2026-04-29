@@ -69,6 +69,7 @@ class GameCog(BaseCog):
                 GameName.RUSSIAN_ROULETTE,
                 GameName.HARDCORE_ROULETTE,
                 GameName.GLOCK_ROULETTE,
+                GameName.TIMEOUT_COUNT,
             ]
         )
         leaderboard_displays = [lb.build_display() for lb in leaderboards]

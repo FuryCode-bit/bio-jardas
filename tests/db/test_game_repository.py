@@ -2,13 +2,31 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from whenever import Instant
 
-from bio_jardas.domains.game.models import Score
-from bio_jardas.domains.game.repositories import ScoreRepository
+from bio_jardas.domains.game.enums import GameName
+from bio_jardas.domains.game.models import Score, TimeoutCount
+from bio_jardas.domains.game.repositories import (
+    ScoreRepository,
+    TimeoutCountRepository,
+)
+from bio_jardas.domains.game.services import GameService
 
 
 @pytest.fixture
 async def score_repo(session: AsyncSession) -> ScoreRepository:
     return ScoreRepository(session)
+
+
+@pytest.fixture
+async def timeout_count_repo(session: AsyncSession) -> TimeoutCountRepository:
+    return TimeoutCountRepository(session)
+
+
+@pytest.fixture
+async def game_service(
+    score_repo: ScoreRepository,
+    timeout_count_repo: TimeoutCountRepository,
+) -> GameService:
+    return GameService(None, score_repo, timeout_count_repo)
 
 
 async def test_score_get_or_create_new(score_repo: ScoreRepository) -> None:
@@ -113,3 +131,29 @@ async def test_get_high_scores_sparse_data(score_repo: ScoreRepository) -> None:
 
     assert len(high_scores) == 1
     assert high_scores[0].user_snowflake_id == 1
+
+
+async def test_leaderboard_omits_empty_timeout_leaderboard(
+    game_service: GameService,
+) -> None:
+    leaderboards = await game_service.leaderboard([GameName.TIMEOUT_COUNT], places=3)
+
+    assert leaderboards == []
+
+
+async def test_leaderboard_includes_timeout_counts(
+    game_service: GameService,
+    timeout_count_repo: TimeoutCountRepository,
+) -> None:
+    await timeout_count_repo.add(
+        TimeoutCount(user_snowflake_id=1, total=5)
+    )
+    await timeout_count_repo.add(
+        TimeoutCount(user_snowflake_id=2, total=2)
+    )
+
+    leaderboards = await game_service.leaderboard([GameName.TIMEOUT_COUNT], places=3)
+
+    assert len(leaderboards) == 1
+    assert leaderboards[0].name == GameName.TIMEOUT_COUNT
+    assert [entry.value for entry in leaderboards[0].high_scores] == [5, 2]

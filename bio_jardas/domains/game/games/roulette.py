@@ -28,6 +28,7 @@ class RouletteGame(Game[ScoreResult], ABC):
                 duration=self._timeout_timedelta(),
                 reason=f"You bit a bullet in {self.title}!",
             )
+            await self.game_service.increment_timeout_count(player.id)
             await context.channel.send(f"{player.mention} has died")
         except Forbidden as e:
             match e.code:

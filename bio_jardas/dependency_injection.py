@@ -12,7 +12,7 @@ from bio_jardas.bot import BioJardas
 from bio_jardas.db.engine import transaction
 from bio_jardas.domains.config.repositories import IntensityRepository
 from bio_jardas.domains.config.services import IntensityService
-from bio_jardas.domains.game.repositories import ScoreRepository
+from bio_jardas.domains.game.repositories import ScoreRepository, TimeoutCountRepository
 from bio_jardas.domains.game.services import GameService
 from bio_jardas.domains.message.repositories import (
     ChannelEnabledRepository,
@@ -107,6 +107,12 @@ class RepositoryProvider(Provider):
         return ScoreRepository(session)
 
     @provide()
+    async def timeout_count_repository(
+        self, session: AsyncSession
+    ) -> TimeoutCountRepository:
+        return TimeoutCountRepository(session)
+
+    @provide()
     async def time_gate_repository(self, session: AsyncSession) -> TimeGateRepository:
         return TimeGateRepository(session)
 
@@ -136,9 +142,12 @@ class ServiceProvider(Provider):
 
     @provide()
     async def game_service(
-        self, bot: BioJardas, score_repo: ScoreRepository
+        self,
+        bot: BioJardas,
+        score_repo: ScoreRepository,
+        timeout_count_repo: TimeoutCountRepository,
     ) -> GameService:
-        return GameService(bot, score_repo)
+        return GameService(bot, score_repo, timeout_count_repo)
 
     @provide()
     async def time_gate_service(

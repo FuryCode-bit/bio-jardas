@@ -2,7 +2,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import aliased
 
 from bio_jardas.db.repositories import CRUDRepository
-from bio_jardas.domains.game.models import Score
+from bio_jardas.domains.game.models import Score, TimeoutCount
 
 
 class ScoreRepository(CRUDRepository[Score]):
@@ -41,5 +41,26 @@ class ScoreRepository(CRUDRepository[Score]):
         score_ranked = aliased(Score, ranked_scores_subquery)
         query = select(score_ranked).where(ranked_scores_subquery.c.rank <= places)
 
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+
+class TimeoutCountRepository(CRUDRepository[TimeoutCount]):
+    model_type = TimeoutCount
+
+    async def get_or_create(
+        self, user_snowflake_id: int, for_update: bool = False
+    ) -> TimeoutCount:
+        timeout_count = await self.get_one_or_none(
+            TimeoutCount.user_snowflake_id == user_snowflake_id,
+            for_update=for_update,
+        )
+        if not timeout_count:
+            timeout_count = TimeoutCount(user_snowflake_id=user_snowflake_id)
+            await self.add(timeout_count)
+        return timeout_count
+
+    async def get_top_timeout_counts(self, places: int) -> list[TimeoutCount]:
+        query = select(TimeoutCount).order_by(desc(TimeoutCount.total)).limit(places)
         result = await self.session.execute(query)
         return list(result.scalars().all())
